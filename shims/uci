@@ -1,0 +1,18 @@
+#!/bin/sh
+# leigod-for-bazzite: OpenWrt uci 兼容垫片
+# token 不入库：动态从 @INSTALL_DIR@/config/accelerator.ini 读取真实值
+CONF="@INSTALL_DIR@/config/accelerator.ini"
+_get_ini() { # key
+    awk -F= -v k="$1" '$1==k {gsub(/^[ \t]+|[ \t]+$/,"",$2); print $2; exit}' "$CONF" 2>/dev/null
+}
+case "$1" in
+  get)
+    case "$2" in
+      misc.hardware.model)       echo "SteamDeck"; exit 0;;
+      misc.hardware.displayName) echo "SteamDeck"; exit 0;;
+      wireless.default_radio0.ssid|wireless.default_radio1.ssid) echo "LeigodBox"; exit 0;;
+      accelerator.base.token)    _get_ini token; exit 0;;
+      *) exit 0;;
+    esac;;
+  *) exit 0;;
+esac

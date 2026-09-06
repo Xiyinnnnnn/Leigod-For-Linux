@@ -1,0 +1,15 @@
+
+[base]
+url="https://opapi1.xxghh.biz/speed/router/plug/check"
+channel="2"
+appid="nnMobile_d0k3duup"
+heart="https://opapi.nn.com/speed/router/heartbeat"
+base_url="https://opapi.xxghh.biz/speed"
+token=""
+once=""
+user_id=""
+
+[update]
+domain="https://opapi.nn.com/nn-version/version/plug/upgrade"
+
+[device]

@@ -1,0 +1,1 @@
+{"reboot_conf":{"end_hour":3,"end_minute":59,"is_daily_reboot":true,"start_hour":3,"start_minute":30},"upgrade_conf":{"end_hour":23,"end_minute":59,"router_run_time":60,"start_hour":0,"start_minute":0}}

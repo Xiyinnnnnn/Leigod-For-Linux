@@ -1,0 +1,6 @@
+#!/bin/sh
+# leigod-for-bazzite: OpenWrt ubus 兼容垫片（web 进程诊断性调用，空实现规避）
+case "$1" in
+  call) echo "{}"; exit 0;;
+  *) exit 0;;
+esac

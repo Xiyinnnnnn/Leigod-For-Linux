@@ -1,0 +1,14 @@
+[Unit]
+Description=Spoof SteamDeck DMI product_name (leigod-for-bazzite)
+DefaultDependencies=no
+Before=leigod_plugin.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStartPre=-/bin/umount /sys/devices/virtual/dmi/id/product_name
+ExecStart=/bin/mount --bind @FAKE_DIR@/fake_product_name /sys/devices/virtual/dmi/id/product_name
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

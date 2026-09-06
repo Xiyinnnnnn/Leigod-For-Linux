@@ -1,0 +1,17 @@
+[Unit]
+Description=Leigod Plugin Service (leigod-for-bazzite)
+Wants=network-online.target
+After=network.target network-online.target
+After=leigod-spoof-dmi.service leigod-wlan0.service
+
+[Service]
+ExecStart=@INSTALL_DIR@/steamdeck_acc_monitor.sh
+KillMode=process
+Restart=always
+RestartSec=3
+# 进程视角的只读伪装：product_name + os-release（systemd 解析 symlink 到真实 inode）
+BindReadOnlyPaths=@FAKE_DIR@/fake_product_name:/sys/class/dmi/id/product_name
+BindReadOnlyPaths=@FAKE_DIR@/fake_os-release:/etc/os-release
+
+[Install]
+WantedBy=default.target

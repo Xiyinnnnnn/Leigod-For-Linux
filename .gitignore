@@ -1,0 +1,6 @@
+# 本地/系统文件不入库
+*.pyc
+__pycache__/
+.DS_Store
+/tmp/
+*.log

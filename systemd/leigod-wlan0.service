@@ -1,0 +1,15 @@
+[Unit]
+Description=Create wlan0 dummy iface for leigod device SN (leigod-for-bazzite)
+Before=leigod_plugin.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/modprobe dummy
+ExecStart=/bin/sh -c 'ip link show wlan0 >/dev/null 2>&1 || ip link add wlan0 type dummy'
+ExecStart=/sbin/ip link set wlan0 address @MAC@
+ExecStart=/sbin/ip link set wlan0 up
+
+[Install]
+WantedBy=multi-user.target

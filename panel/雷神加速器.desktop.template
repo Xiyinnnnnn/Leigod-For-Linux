@@ -1,0 +1,15 @@
+[Desktop Entry]
+Categories=Utility;Network;
+Comment[zh_CN]=查看运行状态 · 一键强制重启（免密）
+Comment=查看运行状态 · 一键强制重启（免密）
+Exec=/usr/bin/python3 @PANEL@
+GenericName[zh_CN]=
+GenericName=
+Icon=yast-nfs
+Keywords=leigod;雷神;加速器;加速;重启;状态;状态面板;
+Name[zh_CN]=雷神加速器
+Name=雷神加速器
+StartupNotify=true
+Terminal=false
+Type=Application
+Version=1.0
