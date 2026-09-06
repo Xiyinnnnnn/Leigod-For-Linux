@@ -1,5 +1,5 @@
 #!/bin/sh
-# leigod-for-bazzite: 进程守护（daemon + web 自愈）
+# Leigod-For-Linux: 进程守护（daemon + web 自愈）
 # 从本脚本所在目录推导安装路径，支持 /opt/leigod、/home/<u>/leigod 任意位置
 
 run_env=$1

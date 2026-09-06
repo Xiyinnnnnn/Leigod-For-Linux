@@ -1,5 +1,5 @@
 [Unit]
-Description=Create wlan0 dummy iface for leigod device SN (leigod-for-bazzite)
+Description=Create wlan0 dummy iface for leigod device SN (Leigod-For-Linux)
 Before=leigod_plugin.service
 After=local-fs.target
 

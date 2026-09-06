@@ -1,6 +1,6 @@
 #!/bin/sh
 # =============================================================================
-#  leigod-for-bazzite — 一键安装脚本
+#  Leigod-For-Linux — 一键安装脚本
 #  对不可变 Linux（Bazzite/SteamOS/Fedora Atomic）友好的雷神加速器组件
 #
 #  用法:
@@ -87,7 +87,7 @@ chmod 755 "$INSTALL_DIR/steamdeck_acc_monitor.sh" "$INSTALL_DIR/panel/leigod_pan
 ok "资产就绪"
 
 # ---- 2. 下载官方二进制 + 数据文件, 并本地打崩溃补丁 -------------------------
-TMP_DL="/tmp/leigod-for-bazzite-dl.$$"
+TMP_DL="/tmp/Leigod-For-Linux-dl.$$"
 mkdir -p "$TMP_DL"
 
 say "从官方源下载组件: $DL_BASE"
@@ -146,7 +146,7 @@ ok "config 就绪"
 say "安装 uci/ubus 兼容垫片到 /usr/local/sbin"
 install_shim() { # $1=仓库shim $2=目标
     local src="$1" dst="$2"
-    if [ -e "$dst" ] && ! head -2 "$dst" | grep -q 'leigod-for-bazzite'; then
+    if [ -e "$dst" ] && ! head -2 "$dst" | grep -q 'Leigod-For-Linux'; then
         cp -a "$dst" "$dst.bak-leigod" && warn "已有非本仓库 $dst,已备份为 $dst.bak-leigod"
     fi
     sed "s|@INSTALL_DIR@|$INSTALL_DIR|g" "$src" > "$dst"
@@ -209,7 +209,7 @@ rm -rf "$TMP_DL"
 cat <<DONE
 
 ================================================================
- ✅ leigod-for-bazzite 安装完成
+ ✅ Leigod-For-Linux 安装完成
 
     安装目录 : $INSTALL_DIR
     设备 MAC : $MAC  (wlan0 dummy, 即设备 SN)

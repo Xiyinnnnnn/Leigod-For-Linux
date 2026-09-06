@@ -1,5 +1,5 @@
 [Unit]
-Description=Spoof SteamDeck DMI product_name (leigod-for-bazzite)
+Description=Spoof SteamDeck DMI product_name (Leigod-For-Linux)
 DefaultDependencies=no
 Before=leigod_plugin.service
 After=local-fs.target

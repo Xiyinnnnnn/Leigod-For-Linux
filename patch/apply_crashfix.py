@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-leigod-for-bazzite crash-fix patcher
+Leigod-For-Linux crash-fix patcher
 
 把雷神官方 acc-gw.router 二进制做 10 字节崩溃修复：
 纯 HTTP + 非空 Host 头访问 5588 → websocketpp::exception "invalid state" → SIGABRT (100% 必崩)。

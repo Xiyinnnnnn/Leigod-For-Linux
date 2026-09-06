@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""雷神加速器状态面板 (leigod-for-bazzite): 双击查看状态 / 一键免密重启。
+"""雷神加速器状态面板 (Leigod-For-Linux): 双击查看状态 / 一键免密重启。
    由 install.sh 部署到 INSTALL_DIR/panel/leigod_panel.py, 桌面图标 Exec 指向它。
    依赖: yad (yad 缺失时 install.sh 跳过桌面图标, 仍可用命令行查看)。"""
 

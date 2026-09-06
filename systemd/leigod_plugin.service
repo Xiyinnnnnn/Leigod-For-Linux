@@ -1,5 +1,5 @@
 [Unit]
-Description=Leigod Plugin Service (leigod-for-bazzite)
+Description=Leigod Plugin Service (Leigod-For-Linux)
 Wants=network-online.target
 After=network.target network-online.target
 After=leigod-spoof-dmi.service leigod-wlan0.service

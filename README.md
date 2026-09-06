@@ -1,4 +1,4 @@
-# leigod-for-bazzite
+# Leigod-For-Linux
 
 > 对不可变 Linux 系统友好的雷神加速器组件：一键伪装 SteamDeck、二进制崩溃补丁、傻瓜桌面面板。
 
@@ -10,8 +10,8 @@
 ## 快速开始
 
 ```bash
-git clone https://github.com/xiyin/leigod-for-bazzite.git
-cd leigod-for-bazzite
+git clone https://github.com/Xiyinnnnnn/Leigod-For-Linux.git
+cd Leigod-For-Linux
 
 sudo ./install.sh            # 一键安装（默认装到 /opt/leigod）
 ```
@@ -112,7 +112,7 @@ python3 patch/apply_crashfix.py <official_binary> <output_binary>
 ## 目录结构
 
 ```
-leigod-for-bazzite/
+Leigod-For-Linux/
 ├── install.sh                  # 一键安装（下载→补丁→伪装→三服务→面板）
 ├── uninstall.sh                # 卸载 / 回滚
 ├── patch/apply_crashfix.py     # 崩溃补丁（SHA256 基线 + 特征扫描 + 幂等）

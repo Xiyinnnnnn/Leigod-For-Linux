@@ -1,6 +1,6 @@
 #!/bin/sh
 # =============================================================================
-#  leigod-for-bazzite — 卸载/回滚脚本
+#  Leigod-For-Linux — 卸载/回滚脚本
 #  用法: sudo ./uninstall.sh [--dir /opt/leigod] [--purge]
 #    --purge  连安装目录一并删除(默认保留 /opt/leigod 便于回退,只停服务拆单元)
 # =============================================================================
@@ -40,7 +40,7 @@ say "删除 uci/ubus shim(还原备份)"
 for dst in /usr/local/sbin/uci /usr/local/sbin/ubus; do
     if [ -f "$dst.bak-leigod" ]; then
         mv "$dst.bak-leigod" "$dst" && ok "还原 $dst"
-    elif head -2 "$dst" 2>/dev/null | grep -q 'leigod-for-bazzite'; then
+    elif head -2 "$dst" 2>/dev/null | grep -q 'Leigod-For-Linux'; then
         rm -f "$dst" && ok "删除本仓库 shim $dst"
     fi
 done
@@ -79,7 +79,7 @@ fi
 cat <<DONE
 
 ================================================================
- ✅ 已卸载 leigod-for-bazzite
+ ✅ 已卸载 Leigod-For-Linux
    (安装目录 $INSTALL_DIR 保留, 可用 sudo $INSTALL_DIR/leigod_uninstall.sh 或重装恢复)
    如需连目录删除: sudo ./uninstall.sh --purge
 ================================================================
