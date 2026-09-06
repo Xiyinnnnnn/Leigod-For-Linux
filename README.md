@@ -39,49 +39,32 @@ sudo ./uninstall.sh --purge                   # 卸载并删除安装目录
 
 ## 伪装架构流程
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         systemd 三单元                              │
-│                                                                     │
-│  leigod-wlan0.service          leigod-spoof-dmi.service             │
-│  (oneshot, Before=plugin)      (oneshot bind mount)                 │
-│  ┌────────────────────┐        ┌──────────────────────────────┐     │
-│  │ modprobe dummy     │        │ umount product_name (幂等)   │     │
-│  │ ip link add wlan0  │        │ mount --bind fake_product    │     │
-│  │ MAC ← machine-id   │        │   → /sys/devices/virtual/    │     │
-│  │   派生(每机唯一)    │        │     dmi/id/product_name     │     │
-│  └─────────┬──────────┘        └──────────────┬───────────────┘     │
-│            │ wlan0=存在, 提供 SN                │ product_name=Jupiter │
-│            ▼                                   ▼                     │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │            leigod_plugin.service (Restart=always)            │   │
-│  │  BindReadOnlyPaths(进程视角只读伪装, 不写宿主):               │   │
-│  │    fake_product_name → /sys/class/dmi/id/product_name        │   │
-│  │    fake_os-release   → /etc/os-release (SteamOS 3.6)         │   │
-│  │  ExecStart=steamdeck_acc_monitor.sh                          │   │
-│  │    └─ daemon: acc-gw -r daemon -m tun -p 5588                │   │
-│  │         └─ web:    acc-gw -r web    -m tun -p 5588 (UDP6066) │   │
-│  │    └─ acc_upgrade_monitor -r upgrade                         │   │
-│  └──────────────────────────────┬───────────────────────────────┘   │
-│                                 │                                   │
-│  官方二进制在此层被 apply_crashfix.py 打过崩溃补丁                   │
-└─────────────────────────────────┼───────────────────────────────────┘
-                                  │
-              uci/ubus 兼容垫片(放 /usr/local/sbin, 截获 OpenWrt 调用)
-                                  │
-  ┌───────────────────────────────▼────────────────────────────────┐
-  │  daemon 调 uci get accelerator.base.token                       │
-  │   → shim 动态读 /opt/leigod/config/accelerator.ini 的 token     │
-  │   （token 不入仓库/不硬编码，绑定后落在本地 ini）                │
-  └─────────────────────────────────────────────────────────────────┘
-
-  手机 App (同 LAN)
-     │ UDP 6066 HELLO(广播) ───────────┐
-     │                                 ▼ web 应答 WHO(model=SteamDeck,
-     │                                 │   sn=wlan0 MAC, bound=true)
-     │ 建立会话 ── TURN 云隧道/直连 TCP 5588
-     ▼
-  绑定 + 游戏加速
+```mermaid
+flowchart TB
+    subgraph SYS["systemd 三单元（开机编排）"]
+        direction TB
+        W0["① leigod-wlan0.service<br/>(oneshot, Before=plugin)<br/>modprobe dummy → ip link add wlan0<br/>MAC ← machine-id 派生（每机唯一）"]
+        SD["② leigod-spoof-dmi.service<br/>(oneshot bind mount)<br/>umount product_name（幂等）<br/>mount --bind fake_product_name<br/>→ /sys/devices/virtual/dmi/id/product_name"]
+        subgraph PLG["③ leigod_plugin.service（Restart=always）"]
+            direction TB
+            MON["ExecStart=steamdeck_acc_monitor.sh<br/>BindReadOnlyPaths 进程级只读伪装（不写宿主）：<br/>product_name=Jupiter<br/>os-release=SteamOS 3.6"]
+            DA["daemon：acc-gw -r daemon -m tun -p 5588"]
+            WEB["web：acc-gw -r web -m tun -p 5588（UDP 6066）"]
+            UP["acc_upgrade_monitor -r upgrade"]
+            MON --> DA & WEB & UP
+        end
+        W0 -->|"wlan0 存在 → 提供 SN"| MON
+        SD -->|"product_name=Jupiter"| MON
+    end
+    PATCH["崩溃补丁层：官方二进制已被 apply_crashfix.py 打过补丁<br/>（SHA256 基线校验 + 偏移特征 + 幂等）"]
+    PATCH -. 已打补丁 .-> DA & WEB
+    DA -->|"uci get accelerator.base.token"| SHIM["uci/ubus 垫片（/usr/local/sbin）<br/>截获 OpenWrt 用户态调用"]
+    SHIM --> TOKEN["动态读 config/accelerator.ini 的 token<br/>（token 不入仓库 / 不硬编码）"]
+    APP["手机 App（同一局域网）"]
+    APP -- "UDP 6066 HELLO（广播）" --> WEB
+    WEB -- "WHO：model=SteamDeck<br/>sn=wlan0 MAC / bound=true" --> APP
+    APP -- "TURN 云隧道 / 直连 TCP 5588" --> DA
+    APP --> RES["✅ 绑定 + 游戏加速"]
 ```
 
 ### 为什么需要这三层伪装
