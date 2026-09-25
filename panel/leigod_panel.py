@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""雷神加速器状态面板 (Leigod-For-Linux): 双击查看状态 / 一键免密重启。
-   由 install.sh 部署到 INSTALL_DIR/panel/leigod_panel.py, 桌面图标 Exec 指向它。
-   依赖: yad (yad 缺失时 install.sh 跳过桌面图标, 仍可用命令行查看)。"""
+"""雷神加速器状态面板：傻瓜式双击 → 看状态 → 一键强制重启（免密）
+2026-09-25 改版：
+  - web 探测：TCP 连接/HTTP → 进程存活 + 端口 LISTEN（零流量，不打扰 web）
+  - 手机连接：ESTAB 计数 → nftables UDP 计数器（TURN 隧道下发流量 dport 5588）
+  - 每 5s 自动刷新
+"""
+import os, re, time, subprocess
 
 SERVICE = "leigod_plugin"
-PROCS   = ["steamdeck_acc_monitor.sh", "acc-gw.router.amd64", "acc_upgrade_monitor"]
-LOG     = "/tmp/acc/log/steamdeck_acc_monitor.log"
-YAD     = "/usr/bin/yad"
+PROCS = {
+    "steamdeck_acc_monitor.sh": "监控脚本",
+    "acc-gw.router.amd64 -r daemon": "daemon",
+    "acc-gw.router.amd64 -r web": "web",
+    "acc_upgrade_monitor -r upgrade": "升级监控",
+}
+LOG = "/tmp/acc/log/steamdeck_acc_monitor.log"
+YAD = "/usr/bin/yad"
+NFT_TABLE = "leigod_panel"
+REFRESH_SECS = 5
 
 def sh(cmd, timeout=10):
     try:
@@ -16,16 +27,41 @@ def sh(cmd, timeout=10):
     except Exception as e:
         return (1, "", str(e))
 
-def collect():
+def ensure_nft():
+    """确保 nftables 计数表存在（policy accept，只计数不改流量）"""
+    rc, out, _ = sh(["sudo", "-n", "nft", "list", "table", "inet", NFT_TABLE])
+    if rc == 0 and out.count("counter") >= 2:
+        return
+    sh(["sudo", "-n", "nft", "delete", "table", "inet", NFT_TABLE])
+    sh(["sudo", "-n", "nft", "add", "table", "inet", NFT_TABLE])
+    sh(["sudo", "-n", "nft", "add", "chain", "inet", NFT_TABLE, "out",
+        "{ type filter hook output priority 0; policy accept; }"])
+    sh(["sudo", "-n", "nft", "add", "rule", "inet", NFT_TABLE, "out", "udp dport 5588 counter"])
+    sh(["sudo", "-n", "nft", "add", "chain", "inet", NFT_TABLE, "in",
+        "{ type filter hook input priority 0; policy accept; }"])
+    sh(["sudo", "-n", "nft", "add", "rule", "inet", NFT_TABLE, "in", "udp sport 5588 counter"])
+
+def read_udp_counter():
+    rc, out, _ = sh(["sudo", "-n", "nft", "list", "table", "inet", NFT_TABLE])
+    if rc != 0:
+        return None
+    total = 0
+    for line in out.splitlines():
+        m = re.search(r"packets (\d+)", line)
+        if m:
+            total += int(m.group(1))
+    return total
+
+def collect(state):
     info = {}
     _, out, _ = sh(["systemctl", "is-active", SERVICE])
     info["service_active"] = out == "active"
-    rc, out, _ = sh(["systemctl", "is-enabled", SERVICE])
-    info["service_enabled"] = rc == 0
+    _, out, _ = sh(["systemctl", "is-enabled", SERVICE])
+    info["service_enabled"] = out == "enabled"
     info["procs"] = {}
-    for p in PROCS:
-        _, out, _ = sh(["pgrep", "-f", p])
-        info["procs"][p] = bool(out.strip())
+    for pat, label in PROCS.items():
+        _, out, _ = sh(["pgrep", "-f", pat])
+        info["procs"][label] = bool(out.strip())
     info["wlan0"] = os.path.exists("/sys/class/net/wlan0")
     _, out, _ = sh(["systemctl", "show", SERVICE, "-p", "ActiveEnterTimestamp", "--value"])
     info["uptime"] = out or "未知"
@@ -33,27 +69,29 @@ def collect():
     if os.path.exists(LOG):
         with open(LOG, "r", errors="replace") as f:
             info["log"] = "".join(f.readlines()[-6:])
-    # 手机连接状态（雷神 App 走 5588 web 服务）
-    info["phone"] = {}
-    import socket
-    try:
-        _s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        _s.settimeout(2)
-        _s.connect(("127.0.0.1", 5588))
-        _s.close()
-        info["phone"]["online"] = True
-    except Exception:
-        info["phone"]["online"] = False
-    rc, out, _ = sh(["ss", "-tn"])
-    est = [l for l in out.splitlines() if ":5588" in l and "ESTAB" in l]
-    info["phone"]["count"] = len(est)
-    rc, out, _ = sh(["ip", "-4", "addr", "show"])
+    # web 在线 = web 进程存活 + 5588 端口 LISTEN（零流量探测，不发包不打扰 web）
+    _, out, _ = sh(["ss", "-tln"])
+    info["web_port"] = any(
+        l.split()[3].endswith(":5588")
+        for l in out.splitlines()
+        if l.startswith("LISTEN") and len(l.split()) >= 4
+    )
+    info["web_online"] = info["procs"]["web"] and info["web_port"]
+    # 手机连接 = TURN 隧道 UDP 流量（下发 dport 5588 + 上行 sport 5588 之和）
+    total = read_udp_counter()
+    if total is None:
+        info["phone_udp"] = None
+    else:
+        last = state.get("last_udp")
+        info["phone_udp"] = max(0, total - last) if last is not None else None
+        state["last_udp"] = total
+    _, out, _ = sh(["ip", "-4", "addr", "show"])
     ip = ""
     for line in out.splitlines():
         if "inet " in line and "127.0.0.1" not in line:
             ip = line.split()[1].split("/")[0]
             break
-    info["phone"]["ip"] = ip
+    info["phone_ip"] = ip
     return info
 
 def render(info):
@@ -64,20 +102,25 @@ def render(info):
     else:
         lines.append("❌ 服务状态：已停止")
         ok = False
-    for name, alive in info["procs"].items():
-        short = name.replace(".amd64", "").replace(".sh", "")
-        lines.append(("✅" if alive else "❌") + " 进程 " + short)
+    for label, alive in info["procs"].items():
+        lines.append(("✅" if alive else "❌") + " 进程 " + label)
         if not alive:
             ok = False
     lines.append(("✅" if info["wlan0"] else "⚠️") + " 虚拟网卡 wlan0" + ("（存在）" if info["wlan0"] else "（缺失，加速可能不可用）"))
     if not info["wlan0"]:
         ok = False
-    ph = info.get("phone", {})
-    if ph.get("online"):
-        lines.append(("📱 手机连接：在线 · " + str(ph.get("count", 0)) + " 台设备连接中" if ph.get("count") else "📱 手机连接：在线 · 等待手机 App 连接") + ("（" + ph.get("ip", "") + ":5588）" if ph.get("ip") else ""))
-    else:
-        lines.append("❌ 手机连接：web 服务(5588)离线")
+    if not info["web_online"]:
+        lines.append("❌ web 服务(5588)：离线")
         ok = False
+    else:
+        udp = info["phone_udp"]
+        if udp is None:
+            lines.append("📱 手机：UDP 计数器不可用")
+        elif udp > 0:
+            lines.append("📱 手机：在线（近 %ds UDP 隧道流量 %d 包）" % (REFRESH_SECS, udp))
+        else:
+            lines.append("📱 手机：无 UDP 流量（未连接或空闲）")
+        lines.append("📍 本机 IP：" + info["phone_ip"])
     lines.append("⏱ 本次运行：" + info["uptime"])
     head = "✅ 雷神加速器运行正常" if ok else "⚠️ 雷神加速器状态异常"
     return head, lines, ok
@@ -85,13 +128,12 @@ def render(info):
 def dialog(head, body, warn=False):
     import html
     fg = "#f87171" if warn else "#4ade80"
-    # head 可控无需转义；body 可能含日志(有 <>&)需转义防 markup 破坏
     text = "<span foreground='%s' size='x-large'><b>%s</b></span>\n\n%s" % (fg, head, html.escape(body))
     return subprocess.run([
         YAD, "--title=雷神加速器",
         "--text=" + text,
         "--markup",
-        "--button=🔄 刷新:3", "--button=🔧 强制重启:1", "--button=关闭:0",
+        "--button=🔧 强制重启:1", "--button=关闭:0",
         "--buttons-layout=center",
         "--center", "--width=480", "--height=420", "--scroll",
     ]).returncode
@@ -101,32 +143,31 @@ def restart_service():
     subprocess.run(["sudo", "-n", "systemctl", "restart", SERVICE])
 
 def main():
-    info = collect()
-    head, lines, ok = render(info)
+    ensure_nft()
+    state = {"last_udp": read_udp_counter()}
+    time.sleep(3)  # 首个测量窗口
     while True:
+        info = collect(state)
+        head, lines, ok = render(info)
         body = "\n".join(lines)
         if not ok and info["log"]:
             body += "\n\n──── 最近日志 ────\n" + info["log"]
         ret = dialog(head, body, warn=not ok)
         if ret in (0, 252):
             break
-        if ret == 3:
-            info = collect()
-            head, lines, ok = render(info)
-            continue
         if ret == 1:
             c = subprocess.run([
                 YAD, "--title=雷神加速器", "--text-align=center",
                 "--text=<b>⚠️ 确定要强制重启雷神加速器吗？</b>\n\n将终止全部 leigod 进程并重新拉起。",
                 "--button=取消:1", "--button=确认重启:0",
-                "--buttons-layout=center", "--center",
+                "--buttons-layout=center",
+                "--center",
             ]).returncode
             if c == 0:
                 restart_service()
                 time.sleep(3)
-            info = collect()
-            head, lines, ok = render(info)
             continue
+        time.sleep(REFRESH_SECS)
 
 if __name__ == "__main__":
     main()

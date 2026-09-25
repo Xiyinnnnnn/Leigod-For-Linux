@@ -19,7 +19,6 @@
 | `files/steamdeck_acc_monitor.sh` | 进程守护自愈 | 自身目录推导安装路径；`/proc` 扫描代替 `pidof`（D 进程卡死 `/proc` 时 pidof 会被拖死）；单例锁 `/var/run/acc_daemon.lock`；幂等补 wlan0 |
 | `shims/uci` | OpenWrt uci 垫片 | `uci get accelerator.base.token` → 动态 awk 读 `INSTALL_DIR/config/accelerator.ini`；token 不入库不硬编码 |
 | `shims/ubus` | OpenWrt ubus 垫片 | 一律回 `{}`（web 进程诊断性调用空实现规避） |
-| `patch/apply_crashfix.py` | 二进制崩溃补丁 | 官方基线 SHA256 校验 + 偏移特征比对 + 幂等；产物 md5 `b1c3b473` |
 | `panel/leigod_panel.py` | yad 桌面面板 | 双击看状态 / 免密强制重启（sudoers.d 单条白名单） |
 
 ## 伪装层次
@@ -65,10 +64,3 @@ sequenceDiagram
 - **token**：服务端 `bound=true`（由 uci shim 提供真实 token 解决）；
 - **sn**：手机可见并保持绑定（由 dummy wlan0 提供 MAC 解决）。
 
-## 崩溃补丁位置
-
-- 偏移 `0x172937`，10 字节控制流：
-  - 官方：`bf 09 00 00 00 e8 4a fd fe ff`（mov edi,9 → 进崩溃路径）
-  - 修复：`31 c0 31 d2 90 90 90 90 90 90`（xor 清寄存器 → 状态检查走安全返回）
-- 官方版 SHA256 `8e0adb…` / 补丁版 `0dba34…` / md5 `b1c3b473…`
-- 官方源更新二进制 → sha256 不匹配 → 脚本中止打印新偏移（防静默打错）。

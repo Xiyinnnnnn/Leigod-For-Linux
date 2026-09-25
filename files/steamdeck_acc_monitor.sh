@@ -87,8 +87,13 @@ log_message "Monitor daemon started (PID: $$)"
 
 while true; do
     if [ -f "$UPGRADE_FLAG" ]; then
-        log_message "upgrade in progress, skip cycle"
-        sleep 5; continue
+        if pgrep -f "acc_upgrade_monitor -r upgrade" >/dev/null 2>&1; then
+            log_message "upgrade in progress, skip cycle"
+            sleep 5; continue
+        else
+            log_message "stale upgrade flag (no upgrade process), removing"
+            rm -f "$UPGRADE_FLAG"
+        fi
     fi
     echo "$PROCESS_DATA" | while IFS=":" read -r process_name pattern start_cmd; do
         [ -z "$(echo "$process_name" | tr -d ' ')" ] && continue

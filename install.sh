@@ -60,7 +60,6 @@ else
     MAC="02:$(cat /etc/machine-id 2>/dev/null | md5sum | head -c 10 | sed 's/\(..\)/\1:/g;s/:$//')"
 fi
 
-[ -f "$REPO_DIR/patch/apply_crashfix.py" ] || { echo "[!] 找不到补丁脚本: $REPO_DIR/patch/apply_crashfix.py"; exit 1; }
 
 say()  { echo "==> $*"; }
 ok()   { echo "    [✓] $*"; }
@@ -86,7 +85,7 @@ cp "$REPO_DIR/panel/leigod_panel.py"    "$INSTALL_DIR/panel/leigod_panel.py"
 chmod 755 "$INSTALL_DIR/steamdeck_acc_monitor.sh" "$INSTALL_DIR/panel/leigod_panel.py"
 ok "资产就绪"
 
-# ---- 2. 下载官方二进制 + 数据文件, 并本地打崩溃补丁 -------------------------
+# ---- 2. 下载官方二进制 + 数据文件, 原样安装 ---------------------------------
 TMP_DL="/tmp/Leigod-For-Linux-dl.$$"
 mkdir -p "$TMP_DL"
 
@@ -101,13 +100,11 @@ fetch "plugin_common.sh"                "$INSTALL_DIR/plugin_common.sh"
 fetch "plugin_uninstall.sh"             "$INSTALL_DIR/leigod_uninstall.sh"
 ok "下载完成"
 
-say "本地应用崩溃修复补丁 (纯HTTP+Host头→SIGABRT 问题)"
-python3 "$REPO_DIR/patch/apply_crashfix.py" \
-    "$TMP_DL/acc-gw.router.amd64" "$INSTALL_DIR/$BIN_NAME"
+cp "$TMP_DL/acc-gw.router.amd64" "$INSTALL_DIR/$BIN_NAME"
 cp "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/acc_upgrade_monitor"   # 官方同样结构: 同一二进制
 chmod 755 "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/acc_upgrade_monitor"
 chmod 644 "$INSTALL_DIR/leigod_uninstall.sh" 2>/dev/null || true
-ok "补丁二进制就位: $INSTALL_DIR/$BIN_NAME"
+ok "二进制就位: $INSTALL_DIR/$BIN_NAME"
 
 # ---- 3. config (绑定保留策略) ----------------------------------------------
 CONF_FILE="$INSTALL_DIR/config/accelerator.ini"
@@ -214,7 +211,6 @@ cat <<DONE
     安装目录 : $INSTALL_DIR
     设备 MAC : $MAC  (wlan0 dummy, 即设备 SN)
     DMI 伪装 : Jupiter (SteamDeck)  via leigod-spoof-dmi.service
-    崩溃补丁 : 已应用 (SHA256 基线校验通过)
     守护进程 : leigod_plugin.service (monitor→daemon→web 自愈)
     手机绑定 : 打开雷神 App → 加速,首次会在本机写入 token
 
